@@ -1,0 +1,45 @@
+# Quant Research Lab - Python Dependencies
+# Core
+numpy>=1.24.0
+pandas>=2.0.0
+scipy>=1.10.0
+pyyaml>=6.0
+
+# Database
+pymysql>=1.1.0
+sqlalchemy>=2.0.0
+
+# HTTP & WebSocket
+requests>=2.31.0
+aiohttp>=3.8.0
+websockets>=11.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+lightgbm>=4.0.0
+xgboost>=1.7.0
+torch>=2.0.0
+
+# Reinforcement Learning
+gymnasium>=0.29.0
+stable-baselines3>=2.0.0
+
+# Technical Analysis
+ta-lib>=0.4.28
+pandas-ta>=0.3.14
+
+# Visualization
+matplotlib>=3.7.0
+plotly>=5.15.0
+dash>=2.14.0
+
+# Monitoring
+prometheus-client>=0.17.0
+
+# Exchange Integration
+ccxt>=4.0.0
+
+# Utilities
+python-dotenv>=1.0.0
+schedule>=1.2.0
+pytz>=2023.0

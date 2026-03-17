@@ -1,0 +1,31 @@
+[Unit]
+Description=Quant Research Lab - Crypto Quantitative Trading Platform
+After=network.target mysql.service
+Wants=mysql.service
+
+[Service]
+Type=simple
+User=bot2
+Group=bot2
+WorkingDirectory=/home/bot2/claude/quant_research_lab
+Environment="PATH=/usr/bin:/usr/local/bin"
+EnvironmentFile=/home/bot2/claude/quant_research_lab/.env
+
+# Main process - Paper trading mode
+ExecStart=/usr/bin/python3 /home/bot2/claude/quant_research_lab/main.py start_live_trading --paper
+
+# Auto restart
+Restart=always
+RestartSec=10
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=quant-lab
+
+# Resource limits
+LimitNOFILE=65536
+MemoryMax=2G
+
+[Install]
+WantedBy=multi-user.target

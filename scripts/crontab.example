@@ -1,0 +1,23 @@
+# Quant Research Lab - Crontab Configuration
+# Add these lines to your crontab (crontab -e)
+# Adjust paths as needed
+
+PROJECT_DIR=/home/bot2/claude/quant_research_lab
+
+# Data Collection: Every hour at minute 5
+5 * * * * cd $PROJECT_DIR && /usr/bin/python3 main.py download_data --start-date $(date +\%Y-\%m-\%d) >> $PROJECT_DIR/logs/cron.log 2>&1
+
+# Feature Building: Daily at 1 AM
+0 1 * * * cd $PROJECT_DIR && /usr/bin/python3 main.py build_features >> $PROJECT_DIR/logs/cron.log 2>&1
+
+# Model Retraining: Weekly on Sunday at 2 AM
+0 2 * * 0 cd $PROJECT_DIR && /usr/bin/python3 main.py train_models >> $PROJECT_DIR/logs/cron.log 2>&1
+
+# Health Check: Every 5 minutes
+*/5 * * * * cd $PROJECT_DIR && /usr/bin/python3 -c "from data.binance_downloader import BinanceDownloader; d = BinanceDownloader(); d.get_server_time()" >> $PROJECT_DIR/logs/health.log 2>&1
+
+# Log Rotation: Weekly on Monday at 3 AM
+0 3 * * 1 find $PROJECT_DIR/logs -name "*.log" -size +100M -exec gzip {} \; 2>/dev/null
+
+# Backup Database: Daily at 4 AM
+0 4 * * * mysqldump -u bot2 -pbot2_123456 quant_research > $PROJECT_DIR/data/backup_$(date +\%Y\%m\%d).sql 2>/dev/null

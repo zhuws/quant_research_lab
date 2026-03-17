@@ -1,0 +1,95 @@
+# Quant Research Lab Configuration
+# Main configuration file for the crypto quantitative trading research platform
+
+# Symbol and Exchange Settings
+symbol: ETHUSDT
+exchanges:
+  - binance
+  - bybit
+timeframe: 1m
+
+# Trading Settings
+trade_size: 0.1
+max_position: 1.0
+fee: 0.001  # 0.1% fee
+
+# Database Configuration
+database:
+  host: ${MYSQL_HOST:-localhost}
+  port: ${MYSQL_PORT:-3306}
+  user: ${MYSQL_USER:-root}
+  password: ${MYSQL_PASSWORD:-}
+  database: ${MYSQL_DATABASE:-quant_research}
+
+# Binance API Configuration
+binance:
+  api_key: ${BINANCE_API_KEY}
+  api_secret: ${BINANCE_API_SECRET}
+  rest_base_url: https://api.binance.com
+  ws_base_url: wss://stream.binance.com:9443/ws
+
+# Bybit API Configuration
+bybit:
+  api_key: ${BYBIT_API_KEY}
+  api_secret: ${BYBIT_API_SECRET}
+  rest_base_url: https://api.bybit.com
+  ws_base_url: wss://stream.bybit.com/v5/public/linear
+
+# Data Collection Settings
+data_collection:
+  ohlcv_limit: 1000
+  orderbook_depth: 20
+  trades_limit: 1000
+  funding_interval_hours: 8
+
+# Feature Engineering Settings
+features:
+  lookback_periods: [5, 10, 20, 60, 120, 240]
+  volatility_windows: [10, 20, 60]
+  momentum_windows: [5, 10, 20, 60]
+
+# Machine Learning Settings
+ml:
+  target_horizon: 10  # bars ahead for prediction
+  train_test_split: 0.8
+  cross_validation_folds: 5
+  feature_selection_threshold: 0.01
+
+# Reinforcement Learning Settings
+rl:
+  algorithm: PPO
+  learning_rate: 0.0003
+  batch_size: 64
+  n_epochs: 10
+  gamma: 0.99
+  gae_lambda: 0.95
+  clip_range: 0.2
+
+# Backtest Settings
+backtest:
+  initial_capital: 10000
+  transaction_cost: 0.001
+  slippage: 0.0005
+  leverage: 1.0
+
+# Risk Management Settings
+risk:
+  max_drawdown: 0.2  # 20% max drawdown
+  daily_loss_limit: 0.05  # 5% daily loss limit
+  position_limit: 1.0
+  volatility_filter_threshold: 0.02
+  max_leverage: 3.0
+
+# Monitoring Settings
+monitoring:
+  log_level: INFO
+  metrics_port: 9090
+  dashboard_port: 8050
+
+# Logging Configuration
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: logs/quant_lab.log
+  max_size_mb: 100
+  backup_count: 5

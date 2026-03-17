@@ -1,0 +1,121 @@
+version: '3.8'
+
+services:
+  # MySQL Database
+  mysql:
+    image: mysql:8.0
+    container_name: quant-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: quant_research
+      MYSQL_USER: bot2
+      MYSQL_PASSWORD: bot2_123456
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./scripts/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Quant Research Lab Application
+  quant-lab:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quant-lab
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=bot2
+      - MYSQL_PASSWORD=bot2_123456
+      - MYSQL_DATABASE=quant_research
+      - BINANCE_API_KEY=${BINANCE_API_KEY}
+      - BINANCE_API_SECRET=${BINANCE_API_SECRET}
+      - BYBIT_API_KEY=${BYBIT_API_KEY}
+      - BYBIT_API_SECRET=${BYBIT_API_SECRET}
+      - TRADING_MODE=paper
+      - DEFAULT_SYMBOL=ETHUSDT
+    volumes:
+      - ./data:/app/data
+      - ./logs:/app/logs
+      - ./models:/app/models
+    command: python main.py start_live_trading --paper
+
+  # Data Collector Service
+  data-collector:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quant-data-collector
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=bot2
+      - MYSQL_PASSWORD=bot2_123456
+      - MYSQL_DATABASE=quant_research
+    volumes:
+      - ./logs:/app/logs
+    command: >
+      bash -c "python -c '
+      import time
+      import schedule
+      from datetime import datetime, timedelta
+      from data.market_data_collector import MarketDataCollector
+      from data.mysql_storage import MySQLStorage
+      import os
+
+      def collect():
+          print(f\"Collecting data at {datetime.now()}\")
+          storage = MySQLStorage(host=\"mysql\", user=\"bot2\", password=\"bot2_123456\", database=\"quant_research\")
+          storage.connect()
+          collector = MarketDataCollector(storage=storage, symbols=[\"ETHUSDT\"])
+          end = datetime.utcnow()
+          start = end - timedelta(hours=2)
+          collector.download_all_historical(start_date=start, end_date=end)
+          storage.disconnect()
+
+      schedule.every().hour.do(collect)
+      while True:
+          schedule.run_pending()
+          time.sleep(60)
+      '"
+
+  # Monitoring Dashboard (Optional)
+  dashboard:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: quant-dashboard
+    restart: always
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      - MYSQL_HOST=mysql
+      - MYSQL_PORT=3306
+      - MYSQL_USER=bot2
+      - MYSQL_PASSWORD=bot2_123456
+      - MYSQL_DATABASE=quant_research
+    ports:
+      - "8050:8050"
+    command: python -c "from monitoring.trading_dashboard import app; app.run(host='0.0.0.0', port=8050)"
+
+volumes:
+  mysql_data:
+
+networks:
+  default:
+    name: quant-network
