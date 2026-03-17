@@ -225,10 +225,11 @@ class VectorizedBacktestEngine:
         # Calculate strategy returns (position * returns)
         df['strategy_returns'] = df['position'].shift(1) * df['returns']
 
-        # Apply fees on position changes
+        # Apply fees on position changes (fee as percentage of price change)
         df['position_change'] = df['position'].diff().abs()
+        # Fee is applied when position changes, as a percentage of notional
         df['fee_cost'] = df['position_change'] * self.fee
-        df['strategy_returns'] = df['strategy_returns'] - df['fee_cost']
+        df.loc[df['fee_cost'] > 0, 'strategy_returns'] -= df.loc[df['fee_cost'] > 0, 'fee_cost']
 
         # Calculate equity curve
         df['equity'] = self.initial_capital * (1 + df['strategy_returns']).cumprod()

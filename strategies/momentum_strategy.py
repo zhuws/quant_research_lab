@@ -41,11 +41,13 @@ class MomentumStrategy(BaseStrategy):
         self,
         name: str = 'MomentumStrategy',
         capital: float = 100000,
-        fast_period: int = 10,
-        slow_period: int = 30,
+        fast_period: int = 20,
+        slow_period: int = 60,
         rsi_period: int = 14,
-        rsi_overbought: float = 70.0,
-        rsi_oversold: float = 30.0,
+        rsi_overbought: float = 75.0,
+        rsi_oversold: float = 25.0,
+        momentum_threshold: float = 0.003,
+        signal_cooldown: int = 30,
         **kwargs
     ):
         """
@@ -54,11 +56,13 @@ class MomentumStrategy(BaseStrategy):
         Args:
             name: Strategy name
             capital: Initial capital
-            fast_period: Fast MA period (default: 10)
-            slow_period: Slow MA period (default: 30)
+            fast_period: Fast MA period (default: 20 for 1m data)
+            slow_period: Slow MA period (default: 60 for 1m data)
             rsi_period: RSI period (default: 14)
-            rsi_overbought: RSI overbought level (default: 70)
-            rsi_oversold: RSI oversold level (default: 30)
+            rsi_overbought: RSI overbought level (default: 75)
+            rsi_oversold: RSI oversold level (default: 25)
+            momentum_threshold: Minimum momentum for signal (default: 0.3%)
+            signal_cooldown: Bars between signals (default: 30)
             **kwargs: Additional parameters passed to BaseStrategy
         """
         super().__init__(name=name, capital=capital, **kwargs)
@@ -68,6 +72,8 @@ class MomentumStrategy(BaseStrategy):
         self.rsi_period = rsi_period
         self.rsi_overbought = rsi_overbought
         self.rsi_oversold = rsi_oversold
+        self.momentum_threshold = momentum_threshold
+        self.signal_cooldown = signal_cooldown
 
         self.logger = get_logger('momentum_strategy')
         self._signals_df = None
@@ -75,6 +81,7 @@ class MomentumStrategy(BaseStrategy):
         # For real-time signal generation
         self._price_buffer = []
         self._buffer_size = max(self.slow_period, self.rsi_period) + 5
+        self._last_signal_bar = -signal_cooldown  # Track last signal for cooldown
 
     def generate_signal(
         self,
@@ -260,8 +267,12 @@ class MomentumStrategy(BaseStrategy):
 
         # Track position state
         current_position = 0  # 0: flat, 1: long, -1: short
+        last_signal_bar = -self.signal_cooldown
 
-        for idx, row in df.iterrows():
+        # Track MA trend state (above or below)
+        prev_trend = None  # 1 = fast above slow, -1 = fast below slow
+
+        for bar_idx, (idx, row) in enumerate(df.iterrows()):
             # Skip if indicators are NaN
             if pd.isna(row.get('ma_fast')) or pd.isna(row.get('ma_slow')):
                 continue
@@ -269,34 +280,42 @@ class MomentumStrategy(BaseStrategy):
             signal_type = None
             timestamp = row.get('timestamp', datetime.now())
 
-            # MA Crossover signals
             ma_fast = row['ma_fast']
             ma_slow = row['ma_slow']
             rsi = row.get('rsi', 50)
+            momentum = row.get('momentum', 0)
 
-            # Buy signal: Fast MA crosses above Slow MA + RSI not overbought
-            if ma_fast > ma_slow and current_position <= 0:
+            # Check cooldown
+            if bar_idx - last_signal_bar < self.signal_cooldown:
+                prev_trend = 1 if ma_fast > ma_slow else -1
+                continue
+
+            # Calculate current trend
+            current_trend = 1 if ma_fast > ma_slow else -1
+
+            # Detect crossover
+            crossover_up = prev_trend == -1 and current_trend == 1
+            crossover_down = prev_trend == 1 and current_trend == -1
+
+            # Generate signals only on crossovers
+            if crossover_up and current_position <= 0:
                 if rsi < self.rsi_overbought:
                     signal_type = SignalType.BUY
                     current_position = 1
+                    last_signal_bar = bar_idx
 
-            # Sell signal: Fast MA crosses below Slow MA + RSI not oversold
-            elif ma_fast < ma_slow and current_position >= 0:
+            elif crossover_down and current_position >= 0:
                 if rsi > self.rsi_oversold:
                     if current_position == 1:
                         signal_type = SignalType.CLOSE_LONG
-                    else:
-                        signal_type = SignalType.SELL
-                    current_position = -1 if signal_type == SignalType.SELL else 0
+                    current_position = 0
+                    last_signal_bar = bar_idx
 
-            # Additional RSI-based signals
-            elif current_position == 1 and rsi > self.rsi_overbought:
+            # Exit signals based on RSI extremes
+            if current_position == 1 and rsi > self.rsi_overbought:
                 signal_type = SignalType.CLOSE_LONG
                 current_position = 0
-
-            elif current_position == -1 and rsi < self.rsi_oversold:
-                signal_type = SignalType.CLOSE_SHORT
-                current_position = 0
+                last_signal_bar = bar_idx
 
             if signal_type and signal_type != SignalType.NO_SIGNAL:
                 signal = Signal(
@@ -308,10 +327,13 @@ class MomentumStrategy(BaseStrategy):
                     metadata={
                         'ma_fast': ma_fast,
                         'ma_slow': ma_slow,
-                        'rsi': rsi
+                        'rsi': rsi,
+                        'momentum': momentum
                     }
                 )
                 signals.append(signal)
+
+            prev_trend = current_trend
 
         self.logger.info(f"Generated {len(signals)} signals")
         return signals
@@ -373,7 +395,9 @@ class MomentumStrategy(BaseStrategy):
             'slow_period': self.slow_period,
             'rsi_period': self.rsi_period,
             'rsi_overbought': self.rsi_overbought,
-            'rsi_oversold': self.rsi_oversold
+            'rsi_oversold': self.rsi_oversold,
+            'momentum_threshold': self.momentum_threshold,
+            'signal_cooldown': self.signal_cooldown
         }
 
     def set_params(self, **kwargs) -> None:
