@@ -202,7 +202,6 @@ class MySQLStorage:
         tables = {
             'ohlcv': """
                 CREATE TABLE IF NOT EXISTS ohlcv (
-                    id BIGINT AUTO_INCREMENT PRIMARY KEY,
                     exchange VARCHAR(20) NOT NULL,
                     symbol VARCHAR(20) NOT NULL,
                     timeframe VARCHAR(10) NOT NULL,
@@ -213,7 +212,7 @@ class MySQLStorage:
                     close DECIMAL(20, 8) NOT NULL,
                     volume DECIMAL(30, 8) NOT NULL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    UNIQUE KEY uk_ohlcv (exchange, symbol, timeframe, timestamp),
+                    PRIMARY KEY (exchange, symbol, timeframe, timestamp),
                     INDEX idx_timestamp (timestamp),
                     INDEX idx_symbol_time (symbol, timestamp)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
@@ -451,6 +450,10 @@ class MySQLStorage:
 
         if not df.empty:
             df['timestamp'] = pd.to_datetime(df['timestamp'])
+            # Convert Decimal columns to float for numerical operations
+            for col in ['open', 'high', 'low', 'close', 'volume']:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors='coerce').astype(float)
 
         return df
 
