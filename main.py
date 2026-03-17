@@ -244,7 +244,8 @@ class QuantResearchLab:
     def train_models(
         self,
         symbol: Optional[str] = None,
-        model_type: str = 'lightgbm'
+        model_type: str = 'lightgbm',
+        limit: int = 100000
     ) -> None:
         """
         Train ML models.
@@ -252,6 +253,7 @@ class QuantResearchLab:
         Args:
             symbol: Trading symbol
             model_type: Model type (lightgbm, xgboost, neural_network)
+            limit: Maximum number of bars to use for training
         """
         symbol = symbol or self.config.get('symbol', 'ETHUSDT')
 
@@ -273,16 +275,19 @@ class QuantResearchLab:
 
         self.storage.connect()
 
-        # Get data
+        # Get data (limited to most recent bars)
         df = self.storage.get_ohlcv(
             exchange=self.config.get('exchanges', ['binance'])[0],
             symbol=symbol,
-            timeframe='1m'
+            timeframe='1m',
+            limit=limit
         )
 
         if df.empty:
             self.logger.error("No data available for training")
             return
+
+        self.logger.info(f"Using {len(df)} bars for training")
 
         # Build features
         pipeline = FeaturePipeline()
@@ -570,6 +575,13 @@ def main():
     )
 
     parser.add_argument(
+        '--limit',
+        type=int,
+        default=100000,
+        help='Maximum bars to use for training'
+    )
+
+    parser.add_argument(
         '--paper',
         action='store_true',
         help='Use paper trading mode'
@@ -606,7 +618,8 @@ def main():
     elif args.command == 'train_models':
         lab.train_models(
             symbol=args.symbol,
-            model_type=args.model_type
+            model_type=args.model_type,
+            limit=args.limit
         )
 
     elif args.command == 'train_rl':

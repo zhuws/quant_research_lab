@@ -113,7 +113,8 @@ train_ml() {
     echo -e "\n${YELLOW}Training ML model...${NC}"
     python3 main.py train_models \
         --symbol "${DEFAULT_SYMBOL:-ETHUSDT}" \
-        --model-type lightgbm
+        --model-type lightgbm \
+        --limit "${TRAIN_LIMIT:-100000}"
     echo -e "${GREEN}[OK] ML training complete${NC}"
 }
 
