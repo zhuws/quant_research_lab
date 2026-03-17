@@ -7,9 +7,13 @@ import argparse
 import asyncio
 import sys
 import os
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, List
 import yaml
+
+# Load environment variables from .env file
+from dotenv import load_dotenv
+load_dotenv()
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -101,8 +105,8 @@ class QuantResearchLab:
         symbols = symbols or [self.config.get('symbol', 'ETHUSDT')]
         exchanges = exchanges or self.config.get('exchanges', ['binance', 'bybit'])
 
-        start = datetime.strptime(start_date, '%Y-%m-%d') if start_date else get_utc_now() - timedelta(days=30)
-        end = datetime.strptime(end_date, '%Y-%m-%d') if end_date else get_utc_now()
+        start = datetime.strptime(start_date, '%Y-%m-%d').replace(tzinfo=timezone.utc) if start_date else get_utc_now() - timedelta(days=30)
+        end = datetime.strptime(end_date, '%Y-%m-%d').replace(tzinfo=timezone.utc) if end_date else get_utc_now()
 
         self.logger.info(f"Downloading data for {symbols} from {exchanges}")
         self.logger.info(f"Date range: {start} to {end}")
