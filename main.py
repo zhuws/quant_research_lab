@@ -40,10 +40,25 @@ class QuantResearchLab:
         self._data_collector = None
 
     def _load_config(self, config_path: str) -> dict:
-        """Load configuration from YAML file."""
+        """Load configuration from YAML file with environment variable expansion."""
+        import os
+        import re
+
         try:
             with open(config_path, 'r') as f:
-                config = yaml.safe_load(f)
+                content = f.read()
+
+            # Expand environment variables with ${VAR:-default} syntax
+            def expand_env(match):
+                var_expr = match.group(1)
+                if ':-' in var_expr:
+                    var_name, default = var_expr.split(':-', 1)
+                    return os.getenv(var_name, default)
+                else:
+                    return os.getenv(var_expr, match.group(0))
+
+            content = re.sub(r'\$\{([^}]+)\}', expand_env, content)
+            config = yaml.safe_load(content)
             return config or {}
         except FileNotFoundError:
             print(f"Config file not found: {config_path}")
@@ -58,7 +73,7 @@ class QuantResearchLab:
             db_config = self.config.get('database', {})
             self._storage = MySQLStorage(
                 host=db_config.get('host', 'localhost'),
-                port=db_config.get('port', 3306),
+                port=int(db_config.get('port', 3306)),
                 user=db_config.get('user', 'quant_user'),
                 password=db_config.get('password', 'quant_password'),
                 database=db_config.get('database', 'quant_research')
