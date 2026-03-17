@@ -254,7 +254,18 @@ class QuantResearchLab:
         self.logger.info(f"Training {model_type} model for {symbol}")
 
         from features.feature_pipeline import FeaturePipeline
-        from alpha_models.alpha_trainer import AlphaTrainer
+        from alpha_models.model_trainer import ModelTrainer
+        from alpha_models.tree_models import LightGBMModel, XGBoostModel
+
+        # Map model type to model class
+        model_classes = {
+            'lightgbm': LightGBMModel,
+            'xgboost': XGBoostModel
+        }
+
+        if model_type not in model_classes:
+            self.logger.error(f"Unknown model type: {model_type}")
+            return
 
         self.storage.connect()
 
@@ -272,12 +283,13 @@ class QuantResearchLab:
         # Build features
         pipeline = FeaturePipeline()
         features_df = pipeline.generate_features(df)
+        features_df = pipeline.generate_target_labels(features_df)
 
         # Train model
-        trainer = AlphaTrainer(model_type=model_type)
+        trainer = ModelTrainer(model_class=model_classes[model_type])
         results = trainer.train(features_df)
 
-        self.logger.info(f"Model trained: {results['metrics']}")
+        self.logger.info(f"Model trained: IC={results.metrics.ic:.4f}, Sharpe={results.metrics.sharpe:.4f}")
 
         self.storage.disconnect()
 
